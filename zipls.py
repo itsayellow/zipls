@@ -2,16 +2,25 @@
 #
 # ls for inside of zipfile
 
+# TODO: handle globbing, wildcards, e.g. * ?
+# TODO: terminal coloring
+# TODO: zipls -l
+
 import argparse
 import pathlib
 import shutil
 import sys
 import zipfile
 
+
 TERM_COLS = shutil.get_terminal_size(fallback=(80,24))[0]
 
+
+# Custom error to indicate no such file or directory
+#   (differentiating from finding an empty directory with no contents)
 class NoSuchFileDirError(Exception):
     pass
+
 
 def process_command_line(argv):
     """Process command line invocation arguments and switches.
@@ -138,7 +147,11 @@ def main(argv=None):
         except NoSuchFileDirError: 
             print("zipls: " + pathspec + ": No such file or directory in " + args.zipfile + ".")
         else:
+            if len(internal_paths) > 1:
+                print(pathspec + ":")
             format_print_ls(path_matches)
+            if len(internal_paths) > 1:
+                print("")
 
     return 0
 
