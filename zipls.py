@@ -43,7 +43,7 @@ def process_command_line(argv):
         argv: list of arguments, or `None` from ``sys.argv[1:]``.
 
     Returns:
-        args: Namespace with named attributes of arguments and switches
+        argparse.Namespace: named attributes of arguments and switches
     """
     #script_name = argv[0]
     argv = argv[1:]
@@ -90,6 +90,17 @@ def process_command_line(argv):
 
 
 def ls_filter(zipinfolist, pathspec, args):
+    """
+    Args:
+        zipinfolist (list of zipfile.Zipinfo): list of all Zipinfo obj.
+            for all files inside of a zipfile
+        pathspec (str): path to match against zipfile component files
+        args (argparse.Namespace): user arguments to script, esp. switches
+
+    Returns:
+        list of tuples of (str, zipfile.Zipinfo): list the paths that match
+            the specified pathspec
+    """
     return_paths = []
     no_such_file_dir = True
 
@@ -153,6 +164,14 @@ def ls_filter(zipinfolist, pathspec, args):
 
 
 def uncolored_len(in_str):
+    """
+    Args:
+        in_str (str): string that may or may not have terminal coloring
+            character sequences
+
+    Returns:
+        int: length of visible characters in in_str (not incl. color chars.)
+    """
     return len(re.sub("\u001b"+r"\[[0-9;]+m", "", in_str))
 
 
@@ -161,6 +180,10 @@ def find_cols(str_list):
 
     Args:
         str_list (list of str): all strings to be output
+
+    Returns:
+        int: given lengths of items and width of current terminal,
+            number of columns that would fit all str_list entries in each col.
     """
     longest_path = max([uncolored_len(x)+1 for x in str_list])
     numcols = max(int(TERM_COLS/longest_path), 1)
@@ -168,6 +191,10 @@ def find_cols(str_list):
 
 
 def print_cols(path_str_list):
+    """
+    Args:
+        path_str_list (list of str): list of strings to print in columns
+    """
     cols = find_cols(path_str_list)
     num_lines = math.ceil(len(path_str_list)/cols)
     col_width = int(TERM_COLS/cols)
@@ -186,11 +213,22 @@ def print_cols(path_str_list):
 
 
 def print_lines(path_str_list):
+    """
+    Args:
+        path_str_list (list of str): list of strings to print one per line
+    """
     for path_str in path_str_list:
         print(path_str)
 
 
 def perm_octal2str(perm_octal):
+    """
+    Args:
+        perm_octal (int): octal-based file permissions specifier
+
+    Returns:
+        str: rwx--- type file permission string
+    """
     perm_str = ""
 
     # add to perm_str starting with LSB and working to MSB
@@ -214,12 +252,31 @@ def perm_octal2str(perm_octal):
 
 
 def get_zip_perms(zipinfo):
+    """
+    Args:
+        zipinfo (zipfile.Zipinfo): information about one component file of a
+            zip-file
+
+    Returns:
+        int: file permissions for file in octal
+    """
     # TODO: only get permissions if they're valid (i.e. a unix-created zip?)
     perm_octal = (zipinfo.external_attr >> 16) & 0o0777
     return perm_octal
 
 
 def get_zip_mtime(zipinfo):
+    """
+    Args:
+        zipinfo (zipfile.Zipinfo): information about one component file of a
+            zip-file
+
+    Returns:
+        str: date, "month day time" format if date is within 6 months past or
+            future, "month day year" format otherwise.
+
+    """
+    # TODO: get more accurate mtime from other source than date_time in zipinfo
     date = zipinfo.date_time
     datetm = datetime.datetime(date[0], date[1], date[2], date[3], date[4], date[5])
     if abs(datetm.now() - datetm) < datetime.timedelta(days=180):
@@ -231,6 +288,16 @@ def get_zip_mtime(zipinfo):
 
 
 def color_classify(zip_path, args):
+    """
+    Args:
+        zip_path (tuple of (str, zipfile.Zipinfo)): relative file path in
+            string and zipinfo object describing attributes
+        args (argparse.Namespace): user arguments to script, esp. switches
+
+    Returns:
+        str: path string, colored if args.color, decorated with filetype
+            ending character if args.classify
+    """
     color_on = ""
     color_off = ""
     classify_str = ""
@@ -251,6 +318,15 @@ def color_classify(zip_path, args):
 
 
 def make_long_format(path_list, args):
+    """
+    Args:
+        path_list (list of (str, zipfile.Zipinfo)): tuples, one per file
+            component of zipfile, with relative file path and zipinfo
+        args (argparse.Namespace): user arguments to script, esp. switches
+
+    Returns:
+        list of str: list of lines to be printed out one at a time
+    """
     path_str_list = []
     color_on = ""
     color_off = ""
@@ -277,6 +353,12 @@ def make_long_format(path_list, args):
 
 
 def format_print_ls(path_list, args):
+    """
+    Args:
+        path_list (list of (str, zipfile.Zipinfo)): tuples, one per file
+            component of zipfile, with relative file path and zipinfo
+        args (argparse.Namespace): user arguments to script, esp. switches
+    """
     if args.l:
         path_str_list = make_long_format(path_list, args)
     else:
@@ -297,8 +379,18 @@ def glob_filter(internal_paths, zipinfolist):
     fnmatch seems to not want to respect / characters as different directories
 
     So we make our own.
+
+    Args:
+        internal_paths (list of str): list of paths to search for inside
+            zip-file, which may or may not have glob-style wildcard characters
+        zipinfolist (list of zipfile.Zipinfo): list of zipinfo objects, one
+            for each file inside of zipfile
+
+    Returns:
+        list of str: list of input internal paths--paths with wildcard
+            characters being replaced by a series of literal matching paths
     """
-    int_glob_paths = []
+    glob_paths = []
     for pathspec in internal_paths:
         if '*' in pathspec or '?' in pathspec or re.search(r"\[.+\]", pathspec):
             # create escaped regexp
@@ -314,11 +406,11 @@ def glob_filter(internal_paths, zipinfolist):
             for zipinfo in zipinfolist:
                 if pathspec_re.search(zipinfo.filename.rstrip("/")):
                     glob_list.append(zipinfo.filename)
-            int_glob_paths.extend(glob_list)
+            glob_paths.extend(glob_list)
         else:
-            int_glob_paths.append(pathspec)
+            glob_paths.append(pathspec)
 
-    return int_glob_paths
+    return glob_paths
 
 
 def main(argv=None):
@@ -327,18 +419,18 @@ def main(argv=None):
         zipinfolist = zip_fh.infolist()
 
     internal_paths = args.internal_path or ['.']
-    int_glob_paths = glob_filter(internal_paths, zipinfolist)
+    glob_paths = glob_filter(internal_paths, zipinfolist)
 
     first_item = True
-    for pathspec in int_glob_paths:
+    for pathspec in glob_paths:
         try:
             path_matches = ls_filter(zipinfolist, pathspec, args)
-        except NoSuchFileDirError: 
+        except NoSuchFileDirError:
             print("zipls: " + pathspec + ": No such file or directory in " + args.zipfile + ".")
         else:
-            if (len(int_glob_paths) > 1) and not args.directory and not first_item:
+            if (len(glob_paths) > 1) and not args.directory and not first_item:
                 print("")
-            if (len(int_glob_paths) > 1) and not args.directory:
+            if (len(glob_paths) > 1) and not args.directory:
                 print(pathspec + ":")
             format_print_ls(path_matches, args)
             first_item = False
