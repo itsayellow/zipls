@@ -3,9 +3,6 @@
 # ls for inside of zipfile
 
 # TODO: handle globbing, wildcards, e.g. * ?
-# TODO: terminal coloring
-# TODO: zipls -l
-# TODO: zipls -a (currently we show all .filenames)
 
 import argparse
 import datetime
@@ -93,7 +90,12 @@ def ls_filter(zipinfolist, pathspec, args):
     no_such_file_dir = True
 
     for zipinfo in zipinfolist:
+        if not args.all and zipinfo.filename.startswith("."):
+            # omit all filenames starting with . unless -a or -all
+            continue
+
         path = pathlib.Path(zipinfo.filename)
+
         # ls behavior types:
         #   1. pathspec is dir, and is identical to path
         #       -> append NOTHING, error=False
