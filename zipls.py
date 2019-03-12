@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #
-# ls for inside of zipfile
+# ls for inside of zipfile.
+#   some of the key ls switches from gnu ls are implemented
 
 # TODO: handle globbing, wildcards, e.g. * ?
 
@@ -26,6 +27,7 @@ MAGENTA = "\u001b[35m"
 CYAN = "\u001b[36m"
 WHITE = "\u001b[37m"
 RESET = "\u001b[0m"
+
 
 # Custom error to indicate no such file or directory
 #   (differentiating from finding an empty directory with no contents)
@@ -275,6 +277,37 @@ def format_print_ls(path_list, args):
         print_lines(path_str_list)
 
 
+def glob_filter(internal_paths, zipinfolist):
+    """implement a glob filter by hand
+
+    glob seems to want to only want to look for real files in the system
+        (not filter a list of strings)
+    fnmatch seems to not want to respect / characters as different directories
+
+    So we make our own.
+    """
+    int_glob_paths = []
+    for pathspec in internal_paths:
+        if '*' in pathspec or '?' in pathspec or re.search(r"\[.+\]", pathspec):
+            # create escaped regexp
+            pathspec_esc = "^" + re.escape(pathspec) + "$"
+            # change * to [^/]+
+            pathspec_esc = re.sub(r"\\\*", r"[^/]+", pathspec_esc)
+            # change ? to [^/]
+            pathspec_esc = re.sub(r"\\\?", r"[^/]", pathspec_esc)
+            # TODO: handle {}, []
+            pathspec_re = re.compile(pathspec_esc)
+
+            glob_list = []
+            for zipinfo in zipinfolist:
+                if pathspec_re.search(zipinfo.filename.rstrip("/")):
+                    glob_list.append(zipinfo.filename)
+            int_glob_paths.extend(glob_list)
+        else:
+            int_glob_paths.append(pathspec)
+
+    return int_glob_paths
+
 def main(argv=None):
     args = process_command_line(argv)
     with zipfile.ZipFile(str(args.zipfile), 'r') as zip_fh:
@@ -282,17 +315,21 @@ def main(argv=None):
 
     internal_paths = args.internal_path or ['.']
 
-    for pathspec in internal_paths:
+    int_glob_paths = glob_filter(internal_paths, zipinfolist)
+
+    first_item = True
+    for pathspec in int_glob_paths:
         try:
             path_matches = ls_filter(zipinfolist, pathspec, args)
         except NoSuchFileDirError: 
             print("zipls: " + pathspec + ": No such file or directory in " + args.zipfile + ".")
         else:
-            if len(internal_paths) > 1:
+            if (len(int_glob_paths) > 1) and not first_item:
+                print("")
+            if len(int_glob_paths) > 1:
                 print(pathspec + ":")
             format_print_ls(path_matches, args)
-            if len(internal_paths) > 1:
-                print("")
+            first_item = False
 
     return 0
 
