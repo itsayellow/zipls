@@ -3,6 +3,9 @@
 # ls for inside of zipfile.
 #   some of the key ls switches from gnu ls are implemented
 
+# TODO: with -d option and no -l, all output strings should be put into columns
+#       together
+
 import argparse
 import datetime
 import math
@@ -76,9 +79,10 @@ def process_command_line(argv):
         '-l', action='store_true',
         help='use a long listing format'
         )
-    #parser.add_argument(
-    #    '-o', '--omit_hidden', action='store_true',
-    #    help='Do not copy picasa hidden images to destination directory.')
+    parser.add_argument(
+        '-d', '--directory', action='store_true',
+        help='list directories themselves, not their contents'
+        )
 
     args = parser.parse_args(argv)
 
@@ -98,9 +102,11 @@ def ls_filter(zipinfolist, pathspec, args):
 
         # ls behavior types:
         #   1. pathspec is dir, and is identical to path
-        #       -> append NOTHING, error=False
+        #       -> a.) if -d append dirname, error=False
+        #       -> b.) if not -d, append NOTHING, error=False
         #   2. pathspec is dir, path is child of pathspec
-        #       -> append path relative to pathspec, error=False
+        #       -> a.) if -d, append NOTHING, error=False
+        #       -> b.) if not -d, append path relative to pathspec, error=False
         #   3. pathspec is dir, not a parent of path
         #       -> append NOTHING, error unchanged
         #   4. pathspec is dir, distant parent of path
@@ -117,17 +123,25 @@ def ls_filter(zipinfolist, pathspec, args):
 
         if path == pathlib.Path(pathspec):
             if zipinfo.is_dir():
-                # Type 1
-                # append nothing
-                pass
+                if args.directory:
+                    # Type 1a
+                    return_paths.append((str(path), zipinfo))
+                else:
+                    # Type 1b
+                    # append nothing
+                    pass
             else:
                 # Type 5
                 return_paths.append((str(path), zipinfo))
             no_such_file_dir = False
         elif rel_path.parent == pathlib.Path("."):
             # (We already know that it is not type 1)
-            # Type 2
-            return_paths.append((str(rel_path), zipinfo))
+            if args.directory:
+                # Type 2a
+                pass
+            else:
+                # Type 2b
+                return_paths.append((str(rel_path), zipinfo))
             no_such_file_dir = False
 
     if no_such_file_dir:
@@ -306,13 +320,13 @@ def glob_filter(internal_paths, zipinfolist):
 
     return int_glob_paths
 
+
 def main(argv=None):
     args = process_command_line(argv)
     with zipfile.ZipFile(str(args.zipfile), 'r') as zip_fh:
         zipinfolist = zip_fh.infolist()
 
     internal_paths = args.internal_path or ['.']
-
     int_glob_paths = glob_filter(internal_paths, zipinfolist)
 
     first_item = True
@@ -322,9 +336,9 @@ def main(argv=None):
         except NoSuchFileDirError: 
             print("zipls: " + pathspec + ": No such file or directory in " + args.zipfile + ".")
         else:
-            if (len(int_glob_paths) > 1) and not first_item:
+            if (len(int_glob_paths) > 1) and not args.directory and not first_item:
                 print("")
-            if len(int_glob_paths) > 1:
+            if (len(int_glob_paths) > 1) and not args.directory:
                 print(pathspec + ":")
             format_print_ls(path_matches, args)
             first_item = False
