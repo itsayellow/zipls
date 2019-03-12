@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-#
-# ls for inside of zipfile.
-#   some of the key ls switches from gnu ls are implemented
+"""
+ls for inside of zipfile.
+    some of the key ls switches from gnu ls are implemented
+"""
 
 # TODO: with -d option and no -l, all output strings should be put into columns
 #       together
@@ -16,7 +17,7 @@ import sys
 import zipfile
 
 
-TERM_COLS = shutil.get_terminal_size(fallback=(80,24))[0]
+TERM_COLS = shutil.get_terminal_size(fallback=(80, 24))[0]
 
 # quick and dirty (hack) terminal color codes
 BLACK = "\u001b[30m"
@@ -30,9 +31,10 @@ WHITE = "\u001b[37m"
 RESET = "\u001b[0m"
 
 
-# Custom error to indicate no such file or directory
-#   (differentiating from finding an empty directory with no contents)
 class NoSuchFileDirError(Exception):
+    """Custom error to indicate no such file or directory (differentiating
+        from finding an empty directory with no contents)
+    """
     pass
 
 
@@ -158,7 +160,7 @@ def ls_filter(zipinfolist, pathspec, args):
     if no_such_file_dir:
         # Error distinguishes from empty dir (returning empty return_paths)
         #   and non-existent path (raises error)
-        raise(NoSuchFileDirError)
+        raise NoSuchFileDirError
 
     return return_paths
 
@@ -328,9 +330,6 @@ def make_long_format(path_list, args):
         list of str: list of lines to be printed out one at a time
     """
     path_str_list = []
-    color_on = ""
-    color_off = ""
-    classify_str = ""
 
     for path in path_list:
         #extra_data = path[1].extra
