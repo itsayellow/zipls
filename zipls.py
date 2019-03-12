@@ -3,8 +3,6 @@
 # ls for inside of zipfile.
 #   some of the key ls switches from gnu ls are implemented
 
-# TODO: handle globbing, wildcards, e.g. * ?
-
 import argparse
 import datetime
 import math
