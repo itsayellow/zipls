@@ -107,10 +107,6 @@ def ls_filter(zipinfolist, pathspec, args):
     no_such_file_dir = True
 
     for zipinfo in zipinfolist:
-        if not args.all and zipinfo.filename.startswith("."):
-            # omit all filenames starting with . unless -a or -all
-            continue
-
         path = pathlib.Path(zipinfo.filename)
 
         # ls behavior types:
@@ -132,6 +128,10 @@ def ls_filter(zipinfolist, pathspec, args):
             rel_path = path.relative_to(pathspec)
         except ValueError:
             # Types 3, 6
+            continue
+
+        if not args.all and str(rel_path).startswith("."):
+            # omit all filenames starting with . unless -a or -all
             continue
 
         if path == pathlib.Path(pathspec):
