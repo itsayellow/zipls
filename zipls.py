@@ -6,8 +6,6 @@ ls for inside of zipfile.
 
 # TODO: with -d option and no -l, all output strings should be put into columns
 #       together
-# TODO: if wildcard matches no paths, raise error:
-#   zipls: asdf*: No such file or directory in <filename>.zip
 # TODO: make sure absolute paths in zip work as intended
 # TODO: if zipped file has long relative path as top internal dir, then parent
 #   internal dirs will not be present in zip archive.  Need to add them
@@ -420,7 +418,16 @@ def glob_filter(internal_paths, zipinfolist):
             for zipinfo in zipinfolist:
                 if pathspec_re.search(zipinfo.filename.rstrip("/")):
                     glob_list.append(zipinfo.filename)
-            glob_paths.extend(glob_list)
+            if glob_list:
+                glob_paths.extend(glob_list)
+            else:
+                # If doesn't match anything, add literal pathspec, which will
+                #   also not match any actual file/dir, which will raise
+                #   appropriate error.
+                #   (If files had names with literal wildcard characters,
+                #   they would match orig wildcard:
+                #   e.g. file* would match file\*, file? would match file\? )
+                glob_paths.append(pathspec)
         else:
             glob_paths.append(pathspec)
 
