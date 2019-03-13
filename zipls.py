@@ -6,6 +6,9 @@ ls for inside of zipfile.
 
 # TODO: with -d option and no -l, all output strings should be put into columns
 #       together
+# TODO: if we are on a mac, ignore top-level __MACOSX directory
+# TODO: if wildcard matches no paths, raise error:
+#   zipls: asdf*: No such file or directory in <filename>.zip
 
 import argparse
 import datetime
