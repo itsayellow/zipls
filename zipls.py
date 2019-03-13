@@ -6,9 +6,16 @@ ls for inside of zipfile.
 
 # TODO: with -d option and no -l, all output strings should be put into columns
 #       together
-# TODO: if we are on a mac, ignore top-level __MACOSX directory
 # TODO: if wildcard matches no paths, raise error:
 #   zipls: asdf*: No such file or directory in <filename>.zip
+# TODO: make sure absolute paths in zip work as intended
+# TODO: if zipped file has long relative path as top internal dir, then parent
+#   internal dirs will not be present in zip archive.  Need to add them
+#   "virtually" in this tool so pathspec '.' and '*' for example work properly.
+#   Otherwise, user would need to add full path to highest internal dir to get
+#   non-error.
+# TODO: if zip file created on Mac with -jj (--absolute-path) all files are
+#   stored without directory (all appear in top directory.)  Strange format
 
 import argparse
 import datetime
@@ -87,6 +94,11 @@ def process_command_line(argv):
     parser.add_argument(
         '-d', '--directory', action='store_true',
         help='list directories themselves, not their contents'
+        )
+    parser.add_argument(
+        '--hide_macosx', action='store_true',
+        help='Hide Mac-specific top-level folder __MACOSX and descendants.' \
+                ' (Not an ls option.)'
         )
 
     args = parser.parse_args(argv)
@@ -417,8 +429,19 @@ def glob_filter(internal_paths, zipinfolist):
 
 def main(argv=None):
     args = process_command_line(argv)
-    with zipfile.ZipFile(str(args.zipfile), 'r') as zip_fh:
-        zipinfolist = zip_fh.infolist()
+    try:
+        with zipfile.ZipFile(str(args.zipfile), 'r') as zip_fh:
+            zipinfolist = zip_fh.infolist()
+    except FileNotFoundError:
+        print("No such zipfile: " + args.zipfile)
+        return 1
+    except OSError:
+        print("Cannot read zipfile: " + args.zipfile)
+        return 1
+
+    # filter out toplevel folder __MACOSX and descendants if --hide_macosx
+    if args.hide_macosx:
+        zipinfolist = [x for x in zipinfolist if not x.filename.startswith("__MACOSX/")]
 
     internal_paths = args.internal_path or ['.']
     glob_paths = glob_filter(internal_paths, zipinfolist)
