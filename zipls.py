@@ -416,7 +416,6 @@ def glob_filter(internal_paths, zipinfolist):
             # change \[\] to []
             pathspec_esc = re.sub(r"\\\[", r"[", pathspec_esc)
             pathspec_esc = re.sub(r"\\\]", r"]", pathspec_esc)
-            # TODO: handle {}?
 
             pathspec_re = re.compile(pathspec_esc)
 
