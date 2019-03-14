@@ -461,6 +461,8 @@ def get_zipinfo(zipfilename, args):
         return 1
 
     # filter out toplevel folder __MACOSX and descendants if --hide_macosx
+    #   Occurs when zip-file is created from macOS Finder
+    #   (right click -> Compress <folder_name>)
     if args.hide_macosx:
         zipinfolist = [x for x in zipinfolist if not x.filename.startswith("__MACOSX/")]
 
