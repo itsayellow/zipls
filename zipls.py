@@ -409,11 +409,15 @@ def glob_filter(internal_paths, zipinfolist):
         if '*' in pathspec or '?' in pathspec or re.search(r"\[.+\]", pathspec):
             # create escaped regexp
             pathspec_esc = "^" + re.escape(pathspec) + "$"
-            # change * to [^/]+
-            pathspec_esc = re.sub(r"\\\*", r"[^/]+", pathspec_esc)
-            # change ? to [^/]
+            # change \* to [^/]*
+            pathspec_esc = re.sub(r"\\\*", r"[^/]*", pathspec_esc)
+            # change \? to [^/]
             pathspec_esc = re.sub(r"\\\?", r"[^/]", pathspec_esc)
-            # TODO: handle {}, []
+            # change \[\] to []
+            pathspec_esc = re.sub(r"\\\[", r"[", pathspec_esc)
+            pathspec_esc = re.sub(r"\\\]", r"]", pathspec_esc)
+            # TODO: handle {}?
+
             pathspec_re = re.compile(pathspec_esc)
 
             glob_list = []
