@@ -7,13 +7,8 @@ ls for inside of zipfile.
 # TODO: with -d option and no -l, all output strings should be put into columns
 #       together
 # TODO: make sure absolute paths in zip work as intended
-# TODO: if zipped file has long relative path as top internal dir, then parent
-#   internal dirs will not be present in zip archive.  Need to add them
-#   "virtually" in this tool so pathspec '.' and '*' for example work properly.
-#   Otherwise, user would need to add full path to highest internal dir to get
-#   non-error.
-# TODO: if zip file created on Mac with -jj (--absolute-path) all files are
-#   stored without directory (all appear in top directory.)  Strange format
+# TODO: if zip file created (on Mac only?) with -jj (--absolute-path) all files
+#   are stored without directory (all appear in top directory.)  Strange format
 
 import argparse
 import copy
