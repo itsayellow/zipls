@@ -510,7 +510,11 @@ def main(argv=None):
             if (len(glob_paths) > 1) and not args.directory and not first_item:
                 print("")
             if (len(glob_paths) > 1) and not args.directory:
-                print(pathspec + ":")
+                # print pathspec: if more than one glob_path and no -d switch
+                if not (path_matches[0][0]==pathspec and not path_matches[0][1].is_dir()):
+                    # don't print pathspec: if pathspec identical to path_match
+                    #   and path_match is file
+                    print(pathspec.rstrip("/") + ":")
             format_print_ls(path_matches, args)
             first_item = False
 
