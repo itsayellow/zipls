@@ -1,0 +1,11 @@
+# create test dir and test zip
+mkdir hello
+touch hello/a
+touch hello/b
+mkdir hello/blah
+touch hello/blah/c
+touch hello/blah/d
+touch hello/blah/.hidden
+mkdir hello/blah/bleep
+
+zip -r hello.zip hello
