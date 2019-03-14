@@ -201,8 +201,13 @@ def find_cols(str_list):
         int: given lengths of items and width of current terminal,
             number of columns that would fit all str_list entries in each col.
     """
-    longest_path = max([uncolored_len(x)+1 for x in str_list])
-    numcols = max(int(TERM_COLS/longest_path), 1)
+    if str_list:
+        longest_path = max([uncolored_len(x)+1 for x in str_list])
+        numcols = max(int(TERM_COLS/longest_path), 1)
+    else:
+        # empty str_list, just set one column as default
+        numcols = 1
+
     return numcols
 
 
