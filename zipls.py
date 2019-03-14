@@ -143,8 +143,9 @@ def ls_filter(zipinfolist, pathspec, args):
             # Types 3, 6
             continue
 
-        if not args.all and str(rel_path).startswith("."):
+        if not args.all and re.search(r"^\..+", str(rel_path)):
             # omit all filenames starting with . unless -a or -all
+            # (don't omit '.'!)
             continue
 
         if path == pathlib.Path(pathspec):
