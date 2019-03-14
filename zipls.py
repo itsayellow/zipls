@@ -16,6 +16,7 @@ ls for inside of zipfile.
 #   stored without directory (all appear in top directory.)  Strange format
 
 import argparse
+import copy
 import datetime
 import math
 import pathlib
@@ -440,21 +441,60 @@ def glob_filter(internal_paths, zipinfolist):
     return glob_paths
 
 
-def main(argv=None):
-    args = process_command_line(argv)
+def get_zipinfo(zipfilename, args):
+    """
+    Args:
+        zipfilename (str): name of zipfile to read and extract members from
+        args (argparse.Namespace): user arguments to script, esp. switches
+
+    Returns:
+        list of zipfile.Zipinfo): list of zipinfo objects, one for each file
+            inside of zipfile
+    """
     try:
-        with zipfile.ZipFile(str(args.zipfile), 'r') as zip_fh:
+        with zipfile.ZipFile(str(zipfilename), 'r') as zip_fh:
             zipinfolist = zip_fh.infolist()
     except FileNotFoundError:
-        print("No such zipfile: " + args.zipfile)
+        print("No such zipfile: " + zipfilename)
         return 1
     except OSError:
-        print("Cannot read zipfile: " + args.zipfile)
+        print("Cannot read zipfile: " + zipfilename)
         return 1
 
     # filter out toplevel folder __MACOSX and descendants if --hide_macosx
     if args.hide_macosx:
         zipinfolist = [x for x in zipinfolist if not x.filename.startswith("__MACOSX/")]
+
+    # If topmost dir is multiple levels deep, create "virtual" parent dirs in
+    #   zipinfo list
+    # Occurs when a zipfile is created with top-level dir more than one
+    #   level deep.
+
+    # find top-most directory internal to zip and its depth
+    mindepth = 10000000 # infinity
+    for zipinfo in zipinfolist:
+        if zipinfo.is_dir():
+            depth = zipinfo.filename.count("/")
+            if depth < mindepth:
+                zipinfo_mindepth = zipinfo
+                mindepth = min(depth, mindepth)
+
+    # create parent dirs for purposes of zipls if mindepth > 1
+    new_zipinfo = zipinfo_mindepth
+    while mindepth > 1:
+        new_zipinfo = copy.copy(new_zipinfo)
+        new_zipinfo.filename = str(pathlib.Path(new_zipinfo.filename).parent) + "/"
+        zipinfolist.append(new_zipinfo)
+        mindepth = mindepth - 1
+
+    return zipinfolist
+
+
+def main(argv=None):
+    args = process_command_line(argv)
+
+    # get list of all internal components in zipfile and attributes
+    zipinfolist = get_zipinfo(args.zipfile, args)
 
     internal_paths = args.internal_path or ['.']
     glob_paths = glob_filter(internal_paths, zipinfolist)
