@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 ls for inside of zipfile.
-    some of the key ls switches from gnu ls are implemented
+    Some of the key ls switches from gnu ls are implemented.
+    Output should be the same as ls run on extracted zip archive.
 """
 
 # TODO: make sure absolute paths in zip work as intended
