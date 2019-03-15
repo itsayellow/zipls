@@ -14,10 +14,8 @@ ls for inside of zipfile.
 #   are stored without directory (all appear in top directory.)  Strange format
 
 import argparse
-import copy
 import datetime
 import math
-import pathlib
 import re
 import shutil
 import sys
@@ -61,8 +59,7 @@ def process_command_line(argv):
     argv = argv[1:]
 
     # initialize the parser object:
-    parser = argparse.ArgumentParser(
-            description="ls inside of a zipfile.")
+    parser = argparse.ArgumentParser(description="ls inside of a zipfile.")
 
     # specifying nargs= puts outputs of parser in list (even if nargs=1)
 
@@ -119,7 +116,6 @@ def ls_filter(zipinfo_dict, pathspec, args):
             the specified pathspec
     """
     return_paths = []
-    no_such_file_dir = True
 
     try:
         children = zipinfo_dict[pathspec].children
@@ -132,7 +128,7 @@ def ls_filter(zipinfo_dict, pathspec, args):
         return_paths = []
         for child in children:
             if not child.startswith('.') or args.all:
-                child_path = "/".join([x for x in (pathspec, child) if x != ""])
+                child_path = path_join((pathspec, child))
                 return_paths.append((child, zipinfo_dict[child_path].zipinfo))
     else:
         # pathspec is file OR pathspec is dir, but args.directory is set
@@ -372,6 +368,10 @@ def glob_to_re(glob_str):
     return glob_re
 
 
+def path_join(path_parts):
+    return "/".join([x for x in path_parts if x != ""])
+
+
 def glob_recurse(path, zipinfo_parent_dict, output_paths):
     path_dirs = path.split("/")
     first_glob = 0
@@ -379,12 +379,12 @@ def glob_recurse(path, zipinfo_parent_dict, output_paths):
         if '*' in path_dir or '?' in path_dir or re.search(r"\[.+\]", path_dir):
             break
         first_glob = i+1
-    parent= "/".join(path_dirs[0:first_glob])
+    parent = path_join(path_dirs[0:first_glob])
     try:
         mid_level = path_dirs[first_glob]
     except IndexError:
         mid_level = None
-    tail = "/".join(path_dirs[first_glob+1:])
+    tail = path_join(path_dirs[first_glob+1:])
 
     if parent in zipinfo_parent_dict:
         if mid_level is None:
@@ -398,9 +398,8 @@ def glob_recurse(path, zipinfo_parent_dict, output_paths):
                         if glob_re.search(x)
                         ]
                 for mid_match in mid_matches:
-                    recurse_dir = "/".join([x for x in (parent,mid_match, tail) if x != ""])
+                    recurse_dir = path_join((parent, mid_match, tail))
                     glob_recurse(recurse_dir, zipinfo_parent_dict, output_paths)
-            pass
 
 
 def glob_filter(internal_paths, zipinfo_parent_dict):
@@ -448,12 +447,12 @@ def create_node_and_ancestors(node_name, zipinfo, parent_dict):
     root node ""
     """
     node_components = ["",] + node_name.split("/")
-    for (i, parent_component) in enumerate(node_components):
-        me = "/".join([x for x in node_components[:i+1] if x != ""])
-        my_parent = "/".join([x for x in node_components[:i-1] if x != ""])
+    for (i, _) in enumerate(node_components):
+        me = path_join(node_components[:i+1])
+        my_parent = path_join(node_components[:i-1])
         my_leaf = node_components[i]
         try:
-            this_node = parent_dict[me]
+            parent_dict[me]
         except KeyError:
             # no node named me
             # highest unspecified node currently
@@ -535,7 +534,9 @@ def main(argv=None):
         except NoSuchFileDirError:
             no_such_paths.append(pathspec)
         else:
-            if len(path_matches) == 1 and path_matches[0][0]==pathspec:
+            if len(path_matches) == 1 and path_matches[0][0] == pathspec:
+                # handles regular files matching pathspec AND handles dirs
+                #   matching pathspec if -d switch on
                 file_paths.extend(path_matches)
             else:
                 dir_paths.append([pathspec, path_matches])
@@ -547,7 +548,7 @@ def main(argv=None):
     if file_paths:
         format_print_ls(sorted(file_paths), args)
         previous_printing = True
-    for dir_path in sorted(dir_paths, key=lambda x: x[0] ):
+    for dir_path in sorted(dir_paths, key=lambda x: x[0]):
         if previous_printing:
             print("")
         if previous_printing or len(dir_paths) > 1:
