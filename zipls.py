@@ -131,8 +131,9 @@ def ls_filter(zipinfo_dict, pathspec, args):
         # return relative paths of children of pathspec dir
         return_paths = []
         for child in children:
-            child_path = "/".join([x for x in (pathspec, child) if x != ""])
-            return_paths.append((child, zipinfo_dict[child_path].zipinfo))
+            if not child.startswith('.') or args.all:
+                child_path = "/".join([x for x in (pathspec, child) if x != ""])
+                return_paths.append((child, zipinfo_dict[child_path].zipinfo))
     else:
         # pathspec is file OR pathspec is dir, but args.directory is set
         # return pathspec itself and its own zipinfo
