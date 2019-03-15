@@ -101,7 +101,7 @@ def process_command_line(argv):
 def ls_filter(zipinfo_dict, pathspec, args):
     """
     Args:
-        zipinfo_dict (dict of [zipfile.Zipinfo,{}]): list of all Zipinfo obj.
+        zipinfo_dict (dict of FileDirNode): dict of all FileDir obj.
             for all files inside of a zipfile
         pathspec (str): path to match against zipfile component files
         args (argparse.Namespace): user arguments to script, esp. switches
@@ -364,10 +364,30 @@ def glob_to_re(glob_str):
 
 
 def path_join(path_parts):
+    """Join path parts with /, also ignore any parts that are ""
+
+    Args:
+        path_parts (list of str): each part of list is another dir in
+            path
+
+    Returns:
+        str: pathname with / separators, relative path
+    """
     return "/".join([x for x in path_parts if x != ""])
 
 
-def glob_recurse(path, zipinfo_parent_dict, output_paths):
+def glob_recurse(path, zipinfo_dict, output_paths):
+    """
+    Args:
+        path (str):
+        zipinfo_dict (dict of FileDirNode): dict of all FileDir obj.
+            for all files inside of a zipfile
+        output_paths (list of str):
+
+    Returns:
+        list of tuples of (str, zipfile.Zipinfo): list the paths that match
+            the specified pathspec
+    """
     path_dirs = path.split("/")
     first_glob = 0
     for (i, path_dir) in enumerate(path_dirs):
@@ -381,36 +401,37 @@ def glob_recurse(path, zipinfo_parent_dict, output_paths):
         mid_level = None
     tail = path_join(path_dirs[first_glob+1:])
 
-    if parent in zipinfo_parent_dict:
+    if parent in zipinfo_dict:
         if mid_level is None:
             output_paths.append(parent)
         else:
-            if zipinfo_parent_dict[parent].children is not None:
+            if zipinfo_dict[parent].children is not None:
                 # find all matches for mid_level
                 glob_re = glob_to_re(mid_level)
                 mid_matches = [
-                        x for x in zipinfo_parent_dict[parent].children.keys()
+                        x for x in zipinfo_dict[parent].children.keys()
                         if glob_re.search(x)
                         ]
                 for mid_match in mid_matches:
                     recurse_dir = path_join((parent, mid_match, tail))
-                    glob_recurse(recurse_dir, zipinfo_parent_dict, output_paths)
+                    glob_recurse(recurse_dir, zipinfo_dict, output_paths)
 
 
-def glob_filter(internal_paths, zipinfo_parent_dict):
+def glob_filter(internal_paths, zipinfo_dict):
     """implement a glob filter by hand
 
-    glob seems to want to only want to look for real files in the system
+    python glob seems to want to only want to look for real files in the system
         (not filter a list of strings)
-    fnmatch seems to not want to respect / characters as different directories
+    python fnmatch seems to not want to respect / characters as different
+        directories
 
     So we make our own.
 
     Args:
         internal_paths (list of str): list of paths to search for inside
             zip-file, which may or may not have glob-style wildcard characters
-        zipinfolist (list of zipfile.Zipinfo): list of zipinfo objects, one
-            for each file inside of zipfile
+        zipinfo_dict (dict of FileDirNode): dict of all FileDir obj.
+            for all files inside of a zipfile
 
     Returns:
         list of str: list of input internal paths--paths with wildcard
@@ -421,7 +442,7 @@ def glob_filter(internal_paths, zipinfo_parent_dict):
         # normalize pathspec by discarding any possible trailing /
         pathspec = pathspec.rstrip("/")
         glob_paths = []
-        glob_recurse(pathspec, zipinfo_parent_dict, glob_paths)
+        glob_recurse(pathspec, zipinfo_dict, glob_paths)
         if glob_paths:
             output_paths.extend(glob_paths)
         else:
@@ -478,14 +499,14 @@ def get_zipinfo(zipfilename, args):
         args (argparse.Namespace): user arguments to script, esp. switches
 
     Returns:
-        list of zipfile.Zipinfo): list of zipinfo objects, one for each file
+        dict of FileDirNode: dict of FildDirNode objects, one for each file
             inside of zipfile
     """
     with zipfile.ZipFile(str(zipfilename), 'r') as zip_fh:
         zipinfolist = zip_fh.infolist()
 
     # tree root
-    parent_dict = {"":FileDirNode(zipinfo=None, children={})}
+    zipinfo_dict = {"":FileDirNode(zipinfo=None, children={})}
 
     for zipinfo in zipinfolist:
         # filter out toplevel folder __MACOSX and descendants if --hide_macosx
@@ -497,22 +518,27 @@ def get_zipinfo(zipfilename, args):
         this_filedir = zipinfo.filename.rstrip("/")
         (parent_name, _, leaf_name) = this_filedir.rpartition("/")
         try:
-            node_parent = parent_dict[parent_name]
+            node_parent = zipinfo_dict[parent_name]
         except KeyError:
-            # no node parent_name already in FileDirNode and parent_dict,
+            # no node parent_name already in FileDirNode and zipinfo_dict,
             #   create it and all necessary ancestors
-            create_node_and_ancestors(parent_name, zipinfo, parent_dict)
-            node_parent = parent_dict[parent_name]
+            create_node_and_ancestors(parent_name, zipinfo, zipinfo_dict)
+            node_parent = zipinfo_dict[parent_name]
 
         if zipinfo.is_dir():
-            # TODO: check that children[leaf_name] doesn't already exist
-            node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children={})
+            # TODO: check that children[leaf_name] doesn't already exist?
+            if leaf_name not in node_parent.children:
+                node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children={})
+            else:
+                # I don't think this should happen, but it might
+                print("INTERNAL: dir already exists")
+                node_parent.children[leaf_name].zipinfo = zipinfo
         else:
             node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children=None)
 
-        parent_dict[this_filedir] = node_parent.children[leaf_name]
+        zipinfo_dict[this_filedir] = node_parent.children[leaf_name]
 
-    return parent_dict
+    return zipinfo_dict
 
 
 def main(argv=None):
