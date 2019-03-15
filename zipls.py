@@ -251,12 +251,13 @@ def get_zip_mtime(zipinfo):
             future, "month day year" format otherwise.
 
     """
+    # TODO: some mtimes seem to differ for directories, extracted ls vs. zipls
     date = zipinfo.date_time
     datetm = datetime.datetime(date[0], date[1], date[2], date[3], date[4], date[5])
     if abs(datetm.now() - datetm) < datetime.timedelta(days=180):
-        date_str = datetm.strftime("%b %d %H:%M ")
+        date_str = "{d:%b} {d.day:>2} {d:%H}:{d:%M} ".format(d=datetm)
     else:
-        date_str = datetm.strftime("%b %d  %Y ")
+        date_str = "{d:%b} {d.day:>2}  {d.year} ".format(d=datetm)
 
     return date_str
 
