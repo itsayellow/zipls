@@ -14,10 +14,8 @@ import math
 import re
 import shutil
 import sys
-import time
+#import time
 import zipfile
-
-#import anytree
 
 
 TERM_COLS = shutil.get_terminal_size(fallback=(80, 24))[0]
