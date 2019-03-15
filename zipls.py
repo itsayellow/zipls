@@ -431,28 +431,39 @@ def glob_filter(internal_paths, zipinfo_parent_dict):
 
 
 class FileDirNode:
+    """For clarity, encapsulates zipinfo and children if dir.
+
+    Could have been a list or dict, is class for code readability
+    Is slightly slower creation than a list or dict.
+    """
     def __init__(self, zipinfo=None, children=None):
         self.zipinfo = zipinfo
         self.children = children
 
 
-def create_node_and_ancestors(node_name, zipinfo, parent_dict):
+def create_node_and_ancestors(node_name, zipinfo, zipinfo_dict):
     """
     node_parent doesn't exist, create all necessary ancestors back to
     root node ""
+
+    Args:
+        node_name (str):
+        zipinfo (zipfile.Zipinfo):
+        zipinfo_dict (dict of FileDirNode): dict of all FileDir obj.
+            for all files inside of a zipfile
     """
     node_components = ["",] + node_name.split("/")
     for (i, _) in enumerate(node_components):
         me = path_join(node_components[:i+1])
-        my_parent = path_join(node_components[:i-1])
+        my_parent = path_join(node_components[:i])
         my_leaf = node_components[i]
         try:
-            parent_dict[me]
+            zipinfo_dict[me]
         except KeyError:
             # no node named me
             # highest unspecified node currently
-            parent_dict[my_parent].children[my_leaf] = FileDirNode(zipinfo=zipinfo, children={})
-            parent_dict[me] = parent_dict[my_parent].children[my_leaf]
+            zipinfo_dict[my_parent].children[my_leaf] = FileDirNode(zipinfo=zipinfo, children={})
+            zipinfo_dict[me] = zipinfo_dict[my_parent].children[my_leaf]
 
 
 def get_zipinfo(zipfilename, args):
