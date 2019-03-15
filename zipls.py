@@ -10,6 +10,7 @@ ls for inside of zipfile.
 # TODO: if zip file created (on Mac only?) with -jj (--absolute-path) all files
 #   are stored without directory (all appear in top directory.)  Strange format
 
+
 import argparse
 import copy
 import datetime
@@ -18,6 +19,7 @@ import pathlib
 import re
 import shutil
 import sys
+import time
 import zipfile
 
 
@@ -499,6 +501,9 @@ def main(argv=None):
     internal_paths = args.internal_path or ['.']
     glob_paths = glob_filter(internal_paths, zipinfolist)
 
+    # TODO: regular ls finds all pathspec that pertain to a single file and
+    #   groups them all together to be listed first, followed by directory
+    #   blocks
     first_item = True
     for pathspec in glob_paths:
         try:
@@ -522,7 +527,10 @@ def main(argv=None):
 
 if __name__ == "__main__":
     try:
+        start_time = time.time()
         status = main(sys.argv)
+        el_time = time.time() - start_time
+        print("Elapsed time: %.3f seconds"%el_time)
     except KeyboardInterrupt:
         # Make a very clean exit (no debug info) if user breaks with Ctrl-C
         print("Stopped by Keyboard Interrupt", file=sys.stderr)
