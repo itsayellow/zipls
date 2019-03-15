@@ -61,7 +61,7 @@ def process_command_line(argv):
     parser.add_argument('zipfile',
             help="Path to zipfile.",
             )
-    parser.add_argument('internal_path', nargs='*',
+    parser.add_argument('internal_path', nargs='*', default=[],
             help="Path inside zipfile, relative to internal top-level."
             )
 
