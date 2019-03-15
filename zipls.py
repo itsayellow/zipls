@@ -255,9 +255,9 @@ def get_zip_mtime(zipinfo):
     date = zipinfo.date_time
     datetm = datetime.datetime(date[0], date[1], date[2], date[3], date[4], date[5])
     if abs(datetm.now() - datetm) < datetime.timedelta(days=180):
-        date_str = datetm.strftime("%b %m %H:%M ")
+        date_str = datetm.strftime("%b %d %H:%M ")
     else:
-        date_str = datetm.strftime("%b %m  %Y ")
+        date_str = datetm.strftime("%b %d  %Y ")
 
     return date_str
 
