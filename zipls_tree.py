@@ -493,6 +493,11 @@ def glob_filter(internal_paths, zipinfo_parent_dict):
 
 def get_zipinfo(zipfilename, args):
     """
+    Putting the archive internal files into a dict and tree costs ~8% more
+    time here, but makes searching for paths later almost instantaneous.
+    (i.e. overall script speedup of ~5x with one pathspec, more if multiple
+    pathspecs)
+
     Args:
         zipfilename (str): name of zipfile to read and extract members from
         args (argparse.Namespace): user arguments to script, esp. switches
