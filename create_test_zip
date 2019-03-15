@@ -2,10 +2,19 @@
 mkdir hello
 touch hello/a
 touch hello/b
+
 mkdir hello/blah
 touch hello/blah/c
 touch hello/blah/d
 touch hello/blah/.hidden
+
 mkdir hello/blah/bleep
 
+mkdir hello/blah/bleep/hi
+touch hello/blah/bleep/hi/a
+touch hello/blah/bleep/hi/b
+
 zip -r hello.zip hello
+zip -r blah.zip hello/blah
+zip -r bleep.zip hello/blah/bleep
+zip -r hi.zip hello/blah/bleep/hi

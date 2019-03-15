@@ -475,15 +475,8 @@ def get_zipinfo(zipfilename, args):
         list of zipfile.Zipinfo): list of zipinfo objects, one for each file
             inside of zipfile
     """
-    try:
-        with zipfile.ZipFile(str(zipfilename), 'r') as zip_fh:
-            zipinfolist = zip_fh.infolist()
-    except FileNotFoundError:
-        print("No such zipfile: " + zipfilename)
-        return 1
-    except OSError:
-        print("Cannot read zipfile: " + zipfilename)
-        return 1
+    with zipfile.ZipFile(str(zipfilename), 'r') as zip_fh:
+        zipinfolist = zip_fh.infolist()
 
     # tree root
     parent_dict = {"":FileDirNode(zipinfo=None, children={})}
@@ -520,7 +513,14 @@ def main(argv=None):
     args = process_command_line(argv)
 
     # get list of all internal components in zipfile and attributes
-    zipinfo_dict = get_zipinfo(args.zipfile, args)
+    try:
+        zipinfo_dict = get_zipinfo(args.zipfile, args)
+    except FileNotFoundError:
+        print("No such zipfile: " + args.zipfile)
+        return 1
+    except OSError:
+        print("Cannot read zipfile: " + args.zipfile)
+        return 1
 
     internal_paths = args.internal_path or ['']
     glob_paths = glob_filter(internal_paths, zipinfo_dict)
