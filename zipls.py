@@ -118,82 +118,25 @@ def ls_filter(zipinfo_dict, pathspec, args):
         list of tuples of (str, zipfile.Zipinfo): list the paths that match
             the specified pathspec
     """
-    # ls behavior types:
-    #   1. pathspec is dir, and is identical to path
-    #       -> a.) if -d append dirname, error=False
-    #       -> b.) if not -d, append NOTHING, error=False
-    #   2. pathspec is dir, path is child of pathspec
-    #       -> a.) if -d, append NOTHING, error=False
-    #       -> b.) if not -d, append path relative to pathspec, error=False
-    #   3. pathspec is dir, not a parent of path
-    #       -> append NOTHING, error unchanged
-    #   4. pathspec is dir, distant parent of path
-    #       -> append NOTHING, error=False (or unchanged)
-    #   5. pathspec is file, and is identical to path
-    #       -> append path, error=False
-    #   6. pathspec is file, and is not identical to path
-    #       -> append NOTHING, error unchanged
     return_paths = []
     no_such_file_dir = True
 
-    # TODO: make sure trailing / is eliminated
     try:
         children = zipinfo_dict[pathspec].children
     except KeyError:
         raise NoSuchFileDirError
 
-    if children is not None:
+    if children is not None and not args.directory:
         # pathspec is directory
-        # return relative paths of children
+        # return relative paths of children of pathspec dir
         return_paths = []
         for child in children:
             child_path = "/".join([x for x in (pathspec, child) if x != ""])
             return_paths.append((child, zipinfo_dict[child_path].zipinfo))
     else:
-        # pathspec is file, return pathspec
+        # pathspec is file OR pathspec is dir, but args.directory is set
+        # return pathspec itself and its own zipinfo
         return_paths = [(pathspec, zipinfo_dict[pathspec].zipinfo)]
-
-    #for zipinfo in zipinfolist:
-    #    path = pathlib.Path(zipinfo.filename)
-
-    #    try:
-    #        rel_path = path.relative_to(pathspec)
-    #    except ValueError:
-    #        # Types 3, 6
-    #        continue
-
-    #    if not args.all and re.search(r"^\..+", str(rel_path)):
-    #        # omit all filenames starting with . unless -a or -all
-    #        # (don't omit '.'!)
-    #        continue
-
-    #    if path == pathlib.Path(pathspec):
-    #        if zipinfo.is_dir():
-    #            if args.directory:
-    #                # Type 1a
-    #                return_paths.append((str(path), zipinfo))
-    #            else:
-    #                # Type 1b
-    #                # append nothing
-    #                pass
-    #        else:
-    #            # Type 5
-    #            return_paths.append((str(path), zipinfo))
-    #        no_such_file_dir = False
-    #    elif rel_path.parent == pathlib.Path("."):
-    #        # (We already know that it is not type 1)
-    #        if args.directory:
-    #            # Type 2a
-    #            pass
-    #        else:
-    #            # Type 2b
-    #            return_paths.append((str(rel_path), zipinfo))
-    #        no_such_file_dir = False
-
-    #if no_such_file_dir:
-    #    # Error distinguishes from empty dir (returning empty return_paths)
-    #    #   and non-existent path (raises error)
-    #    raise NoSuchFileDirError
 
     return return_paths
 
