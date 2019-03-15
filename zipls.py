@@ -4,11 +4,6 @@ ls for inside of zipfile.
     some of the key ls switches from gnu ls are implemented
 """
 
-# TODO: use anytree to speed up search of internal zip-file file structure!!
-#       also gives us glob for free!
-
-# TODO: with -d option and no -l, all output strings should be put into columns
-#       together
 # TODO: make sure absolute paths in zip work as intended
 # TODO: if zip file created (on Mac only?) with -jj (--absolute-path) all files
 #   are stored without directory (all appear in top directory.)  Strange format
