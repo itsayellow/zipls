@@ -482,9 +482,8 @@ def get_zipinfo(zipfilename, args):
                 mindepth = min(depth, mindepth)
 
     # create parent dirs for purposes of zipls if mindepth > 1
-    new_zipinfo = zipinfo_mindepth
     while mindepth > 1:
-        new_zipinfo = copy.copy(new_zipinfo)
+        new_zipinfo = copy.copy(zipinfo_mindepth)
         new_zipinfo.filename = str(pathlib.Path(new_zipinfo.filename).parent) + "/"
         zipinfolist.append(new_zipinfo)
         mindepth = mindepth - 1

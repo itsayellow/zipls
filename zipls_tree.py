@@ -123,7 +123,7 @@ def ls_filter(zipinfo_dict, pathspec, args):
 
     # TODO: make sure trailing / is eliminated
     try:
-        children = zipinfo_dict[pathspec][1]
+        children = zipinfo_dict[pathspec].children
     except KeyError:
         raise NoSuchFileDirError
 
@@ -131,11 +131,11 @@ def ls_filter(zipinfo_dict, pathspec, args):
         # pathspec is directory, return relative paths of children
         return_paths = []
         for child in children:
-            child_path = pathspec + "/" + child
-            return_paths.append((child, zipinfo_dict[child_path][0]))
+            child_path = "/".join([x for x in (pathspec, child) if x != ""])
+            return_paths.append((child, zipinfo_dict[child_path].zipinfo))
     else:
         # pathspec is file, return pathspec
-        return_paths = [(pathspec, zipinfo_dict[pathspec][0])]
+        return_paths = [(pathspec, zipinfo_dict[pathspec].zipinfo)]
 
     #for zipinfo in zipinfolist:
     #    path = pathlib.Path(zipinfo.filename)
@@ -445,11 +445,11 @@ def glob_recurse(path, zipinfo_parent_dict, output_paths):
         if mid_level is None:
             output_paths.append(parent)
         else:
-            if zipinfo_parent_dict[parent][1] is not None:
+            if zipinfo_parent_dict[parent].children is not None:
                 # find all matches for mid_level
                 glob_re = glob_to_re(mid_level)
                 mid_matches = [
-                        x for x in zipinfo_parent_dict[parent][1].keys()
+                        x for x in zipinfo_parent_dict[parent].children.keys()
                         if glob_re.search(x)
                         ]
                 for mid_match in mid_matches:
@@ -491,6 +491,31 @@ def glob_filter(internal_paths, zipinfo_parent_dict):
     return output_paths
 
 
+class FileDirNode:
+    def __init__(self, zipinfo=None, children=None):
+        self.zipinfo = zipinfo
+        self.children = children
+
+
+def create_node_and_ancestors(node_name, zipinfo, parent_dict):
+    """
+    node_parent doesn't exist, create all necessary ancestors back to
+    root node ""
+    """
+    node_components = ["",] + node_name.split("/")
+    for (i, parent_component) in enumerate(node_components):
+        me = "/".join([x for x in node_components[:i+1] if x != ""])
+        my_parent = "/".join([x for x in node_components[:i-1] if x != ""])
+        my_leaf = node_components[i]
+        try:
+            this_node = parent_dict[me]
+        except KeyError:
+            # no node named me
+            # highest unspecified node currently
+            parent_dict[my_parent].children[my_leaf] = FileDirNode(zipinfo=zipinfo, children={})
+            parent_dict[me] = parent_dict[my_parent].children[my_leaf]
+
+
 def get_zipinfo(zipfilename, args):
     """
     Putting the archive internal files into a dict and tree costs ~8% more
@@ -516,8 +541,8 @@ def get_zipinfo(zipfilename, args):
         print("Cannot read zipfile: " + zipfilename)
         return 1
 
-    tree_root = [None, {}]
-    parent_dict = {"":tree_root}
+    # tree root
+    parent_dict = {"":FileDirNode(zipinfo=None, children={})}
 
     for zipinfo in zipinfolist:
         # filter out toplevel folder __MACOSX and descendants if --hide_macosx
@@ -529,24 +554,20 @@ def get_zipinfo(zipfilename, args):
         this_filedir = zipinfo.filename.rstrip("/")
         (parent_name, _, leaf_name) = this_filedir.rpartition("/")
         try:
-            #node_parent = r.get(tree_root, parent_name)
             node_parent = parent_dict[parent_name]
-        #except anytree.resolver.ResolverError:
         except KeyError:
-            print("ResolverError!")
-            print(zipinfo.filename)
-            print(parent_name)
-            print(leaf_name)
-            # TODO: need to create parent dirs
-            raise
+            # no node parent_name already in FileDirNode and parent_dict,
+            #   create it and all necessary ancestors
+            create_node_and_ancestors(parent_name, zipinfo, parent_dict)
+            node_parent = parent_dict[parent_name]
+
+        if zipinfo.is_dir():
+            # TODO: check that children[leaf_name] doesn't already exist
+            node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children={})
         else:
-            if zipinfo.is_dir():
-                node_parent[1][leaf_name] = [zipinfo, {}]
-                parent_dict[this_filedir] = node_parent[1][leaf_name]
-            else:
-                node_parent[1][leaf_name] = [zipinfo, None]
-                # TODO: try this for time being
-                parent_dict[this_filedir] = node_parent[1][leaf_name]
+            node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children=None)
+
+        parent_dict[this_filedir] = node_parent.children[leaf_name]
 
     return parent_dict
 
@@ -560,7 +581,6 @@ def main(argv=None):
     internal_paths = args.internal_path or ['']
     glob_paths = glob_filter(internal_paths, zipinfo_dict)
 
-    first_item = True
     no_such_paths = []
     file_paths = []
     dir_paths = []
