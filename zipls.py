@@ -4,12 +4,14 @@ ls for inside of zipfile.
     some of the key ls switches from gnu ls are implemented
 """
 
+# TODO: use anytree to speed up search of internal zip-file file structure!!
+#       also gives us glob for free!
+
 # TODO: with -d option and no -l, all output strings should be put into columns
 #       together
 # TODO: make sure absolute paths in zip work as intended
 # TODO: if zip file created (on Mac only?) with -jj (--absolute-path) all files
 #   are stored without directory (all appear in top directory.)  Strange format
-
 
 import argparse
 import copy
@@ -21,6 +23,8 @@ import shutil
 import sys
 import time
 import zipfile
+
+#import anytree
 
 
 TERM_COLS = shutil.get_terminal_size(fallback=(80, 24))[0]
@@ -102,10 +106,10 @@ def process_command_line(argv):
     return args
 
 
-def ls_filter(zipinfolist, pathspec, args):
+def ls_filter(zipinfo_dict, pathspec, args):
     """
     Args:
-        zipinfolist (list of zipfile.Zipinfo): list of all Zipinfo obj.
+        zipinfo_dict (dict of [zipfile.Zipinfo,{}]): list of all Zipinfo obj.
             for all files inside of a zipfile
         pathspec (str): path to match against zipfile component files
         args (argparse.Namespace): user arguments to script, esp. switches
@@ -114,65 +118,82 @@ def ls_filter(zipinfolist, pathspec, args):
         list of tuples of (str, zipfile.Zipinfo): list the paths that match
             the specified pathspec
     """
+    # ls behavior types:
+    #   1. pathspec is dir, and is identical to path
+    #       -> a.) if -d append dirname, error=False
+    #       -> b.) if not -d, append NOTHING, error=False
+    #   2. pathspec is dir, path is child of pathspec
+    #       -> a.) if -d, append NOTHING, error=False
+    #       -> b.) if not -d, append path relative to pathspec, error=False
+    #   3. pathspec is dir, not a parent of path
+    #       -> append NOTHING, error unchanged
+    #   4. pathspec is dir, distant parent of path
+    #       -> append NOTHING, error=False (or unchanged)
+    #   5. pathspec is file, and is identical to path
+    #       -> append path, error=False
+    #   6. pathspec is file, and is not identical to path
+    #       -> append NOTHING, error unchanged
     return_paths = []
     no_such_file_dir = True
 
-    for zipinfo in zipinfolist:
-        path = pathlib.Path(zipinfo.filename)
-
-        # ls behavior types:
-        #   1. pathspec is dir, and is identical to path
-        #       -> a.) if -d append dirname, error=False
-        #       -> b.) if not -d, append NOTHING, error=False
-        #   2. pathspec is dir, path is child of pathspec
-        #       -> a.) if -d, append NOTHING, error=False
-        #       -> b.) if not -d, append path relative to pathspec, error=False
-        #   3. pathspec is dir, not a parent of path
-        #       -> append NOTHING, error unchanged
-        #   4. pathspec is dir, distant parent of path
-        #       -> append NOTHING, error=False (or unchanged)
-        #   5. pathspec is file, and is identical to path
-        #       -> append path, error=False
-        #   6. pathspec is file, and is not identical to path
-        #       -> append NOTHING, error unchanged
-        try:
-            rel_path = path.relative_to(pathspec)
-        except ValueError:
-            # Types 3, 6
-            continue
-
-        if not args.all and re.search(r"^\..+", str(rel_path)):
-            # omit all filenames starting with . unless -a or -all
-            # (don't omit '.'!)
-            continue
-
-        if path == pathlib.Path(pathspec):
-            if zipinfo.is_dir():
-                if args.directory:
-                    # Type 1a
-                    return_paths.append((str(path), zipinfo))
-                else:
-                    # Type 1b
-                    # append nothing
-                    pass
-            else:
-                # Type 5
-                return_paths.append((str(path), zipinfo))
-            no_such_file_dir = False
-        elif rel_path.parent == pathlib.Path("."):
-            # (We already know that it is not type 1)
-            if args.directory:
-                # Type 2a
-                pass
-            else:
-                # Type 2b
-                return_paths.append((str(rel_path), zipinfo))
-            no_such_file_dir = False
-
-    if no_such_file_dir:
-        # Error distinguishes from empty dir (returning empty return_paths)
-        #   and non-existent path (raises error)
+    # TODO: make sure trailing / is eliminated
+    try:
+        children = zipinfo_dict[pathspec].children
+    except KeyError:
         raise NoSuchFileDirError
+
+    if children is not None:
+        # pathspec is directory
+        # return relative paths of children
+        return_paths = []
+        for child in children:
+            child_path = "/".join([x for x in (pathspec, child) if x != ""])
+            return_paths.append((child, zipinfo_dict[child_path].zipinfo))
+    else:
+        # pathspec is file, return pathspec
+        return_paths = [(pathspec, zipinfo_dict[pathspec].zipinfo)]
+
+    #for zipinfo in zipinfolist:
+    #    path = pathlib.Path(zipinfo.filename)
+
+    #    try:
+    #        rel_path = path.relative_to(pathspec)
+    #    except ValueError:
+    #        # Types 3, 6
+    #        continue
+
+    #    if not args.all and re.search(r"^\..+", str(rel_path)):
+    #        # omit all filenames starting with . unless -a or -all
+    #        # (don't omit '.'!)
+    #        continue
+
+    #    if path == pathlib.Path(pathspec):
+    #        if zipinfo.is_dir():
+    #            if args.directory:
+    #                # Type 1a
+    #                return_paths.append((str(path), zipinfo))
+    #            else:
+    #                # Type 1b
+    #                # append nothing
+    #                pass
+    #        else:
+    #            # Type 5
+    #            return_paths.append((str(path), zipinfo))
+    #        no_such_file_dir = False
+    #    elif rel_path.parent == pathlib.Path("."):
+    #        # (We already know that it is not type 1)
+    #        if args.directory:
+    #            # Type 2a
+    #            pass
+    #        else:
+    #            # Type 2b
+    #            return_paths.append((str(rel_path), zipinfo))
+    #        no_such_file_dir = False
+
+    #if no_such_file_dir:
+    #    # Error distinguishes from empty dir (returning empty return_paths)
+    #    #   and non-existent path (raises error)
+    #    raise NoSuchFileDirError
 
     return return_paths
 
@@ -387,7 +408,58 @@ def format_print_ls(path_list, args):
         print_lines(path_str_list)
 
 
-def glob_filter(internal_paths, zipinfolist):
+def glob_to_re(glob_str):
+    """Convert glob str to regexp object
+
+    Assume no / in glob_str
+    """
+    glob_str_esc = "^" + re.escape(glob_str) + "$"
+    if '*' in glob_str or '?' in glob_str or re.search(r"\[.+\]", glob_str):
+        # create escaped regexp
+        # change \* to [^/]*
+        glob_str_esc = re.sub(r"\\\*", r"[^/]*", glob_str_esc)
+        # change \? to [^/]
+        glob_str_esc = re.sub(r"\\\?", r"[^/]", glob_str_esc)
+        # change \[\] to []
+        glob_str_esc = re.sub(r"\\\[", r"[", glob_str_esc)
+        glob_str_esc = re.sub(r"\\\]", r"]", glob_str_esc)
+
+    glob_re = re.compile(glob_str_esc)
+    return glob_re
+
+
+def glob_recurse(path, zipinfo_parent_dict, output_paths):
+    path_dirs = path.split("/")
+    first_glob = 0
+    for (i, path_dir) in enumerate(path_dirs):
+        if '*' in path_dir or '?' in path_dir or re.search(r"\[.+\]", path_dir):
+            break
+        first_glob = i+1
+    parent= "/".join(path_dirs[0:first_glob])
+    try:
+        mid_level = path_dirs[first_glob]
+    except IndexError:
+        mid_level = None
+    tail = "/".join(path_dirs[first_glob+1:])
+
+    if parent in zipinfo_parent_dict:
+        if mid_level is None:
+            output_paths.append(parent)
+        else:
+            if zipinfo_parent_dict[parent].children is not None:
+                # find all matches for mid_level
+                glob_re = glob_to_re(mid_level)
+                mid_matches = [
+                        x for x in zipinfo_parent_dict[parent].children.keys()
+                        if glob_re.search(x)
+                        ]
+                for mid_match in mid_matches:
+                    recurse_dir = "/".join([x for x in (parent,mid_match, tail) if x != ""])
+                    glob_recurse(recurse_dir, zipinfo_parent_dict, output_paths)
+            pass
+
+
+def glob_filter(internal_paths, zipinfo_parent_dict):
     """implement a glob filter by hand
 
     glob seems to want to only want to look for real files in the system
@@ -406,43 +478,52 @@ def glob_filter(internal_paths, zipinfolist):
         list of str: list of input internal paths--paths with wildcard
             characters being replaced by a series of literal matching paths
     """
-    glob_paths = []
+    output_paths = []
     for pathspec in internal_paths:
-        if '*' in pathspec or '?' in pathspec or re.search(r"\[.+\]", pathspec):
-            # create escaped regexp
-            pathspec_esc = "^" + re.escape(pathspec) + "$"
-            # change \* to [^/]*
-            pathspec_esc = re.sub(r"\\\*", r"[^/]*", pathspec_esc)
-            # change \? to [^/]
-            pathspec_esc = re.sub(r"\\\?", r"[^/]", pathspec_esc)
-            # change \[\] to []
-            pathspec_esc = re.sub(r"\\\[", r"[", pathspec_esc)
-            pathspec_esc = re.sub(r"\\\]", r"]", pathspec_esc)
-
-            pathspec_re = re.compile(pathspec_esc)
-
-            glob_list = []
-            for zipinfo in zipinfolist:
-                if pathspec_re.search(zipinfo.filename.rstrip("/")):
-                    glob_list.append(zipinfo.filename)
-            if glob_list:
-                glob_paths.extend(glob_list)
-            else:
-                # If doesn't match anything, add literal pathspec, which will
-                #   also not match any actual file/dir, which will raise
-                #   appropriate error.
-                #   (If files had names with literal wildcard characters,
-                #   they would match orig wildcard:
-                #   e.g. file* would match file\*, file? would match file\? )
-                glob_paths.append(pathspec)
+        # normalize pathspec by discarding any possible trailing /
+        pathspec = pathspec.rstrip("/")
+        glob_paths = []
+        glob_recurse(pathspec, zipinfo_parent_dict, glob_paths)
+        if glob_paths:
+            output_paths.extend(glob_paths)
         else:
-            glob_paths.append(pathspec)
+            output_paths.append(pathspec)
 
-    return glob_paths
+    return output_paths
+
+
+class FileDirNode:
+    def __init__(self, zipinfo=None, children=None):
+        self.zipinfo = zipinfo
+        self.children = children
+
+
+def create_node_and_ancestors(node_name, zipinfo, parent_dict):
+    """
+    node_parent doesn't exist, create all necessary ancestors back to
+    root node ""
+    """
+    node_components = ["",] + node_name.split("/")
+    for (i, parent_component) in enumerate(node_components):
+        me = "/".join([x for x in node_components[:i+1] if x != ""])
+        my_parent = "/".join([x for x in node_components[:i-1] if x != ""])
+        my_leaf = node_components[i]
+        try:
+            this_node = parent_dict[me]
+        except KeyError:
+            # no node named me
+            # highest unspecified node currently
+            parent_dict[my_parent].children[my_leaf] = FileDirNode(zipinfo=zipinfo, children={})
+            parent_dict[me] = parent_dict[my_parent].children[my_leaf]
 
 
 def get_zipinfo(zipfilename, args):
     """
+    Putting the archive internal files into a dict and tree costs ~8% more
+    time here, but makes searching for paths later almost instantaneous.
+    (i.e. overall script speedup of ~5x with one pathspec, more if multiple
+    pathspecs)
+
     Args:
         zipfilename (str): name of zipfile to read and extract members from
         args (argparse.Namespace): user arguments to script, esp. switches
@@ -461,65 +542,74 @@ def get_zipinfo(zipfilename, args):
         print("Cannot read zipfile: " + zipfilename)
         return 1
 
-    # filter out toplevel folder __MACOSX and descendants if --hide_macosx
-    #   Occurs when zip-file is created from macOS Finder
-    #   (right click -> Compress <folder_name>)
-    if args.hide_macosx:
-        zipinfolist = [x for x in zipinfolist if not x.filename.startswith("__MACOSX/")]
+    # tree root
+    parent_dict = {"":FileDirNode(zipinfo=None, children={})}
 
-    # If topmost dir is multiple levels deep, create "virtual" parent dirs in
-    #   zipinfo list
-    # Occurs when a zipfile is created with top-level dir more than one
-    #   level deep.
-
-    # find top-most directory internal to zip and its depth
-    mindepth = 10000000 # infinity
     for zipinfo in zipinfolist:
+        # filter out toplevel folder __MACOSX and descendants if --hide_macosx
+        #   Occurs when zip-file is created from macOS Finder
+        #   (right click -> Compress <folder_name>)
+        if args.hide_macosx and zipinfo.filename.startwith("__MACOSX/"):
+            continue
+
+        this_filedir = zipinfo.filename.rstrip("/")
+        (parent_name, _, leaf_name) = this_filedir.rpartition("/")
+        try:
+            node_parent = parent_dict[parent_name]
+        except KeyError:
+            # no node parent_name already in FileDirNode and parent_dict,
+            #   create it and all necessary ancestors
+            create_node_and_ancestors(parent_name, zipinfo, parent_dict)
+            node_parent = parent_dict[parent_name]
+
         if zipinfo.is_dir():
-            depth = zipinfo.filename.count("/")
-            if depth < mindepth:
-                zipinfo_mindepth = zipinfo
-                mindepth = min(depth, mindepth)
+            # TODO: check that children[leaf_name] doesn't already exist
+            node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children={})
+        else:
+            node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children=None)
 
-    # create parent dirs for purposes of zipls if mindepth > 1
-    while mindepth > 1:
-        new_zipinfo = copy.copy(zipinfo_mindepth)
-        new_zipinfo.filename = str(pathlib.Path(new_zipinfo.filename).parent) + "/"
-        zipinfolist.append(new_zipinfo)
-        mindepth = mindepth - 1
+        parent_dict[this_filedir] = node_parent.children[leaf_name]
 
-    return zipinfolist
+    return parent_dict
 
 
 def main(argv=None):
     args = process_command_line(argv)
 
     # get list of all internal components in zipfile and attributes
-    zipinfolist = get_zipinfo(args.zipfile, args)
+    zipinfo_dict = get_zipinfo(args.zipfile, args)
 
-    internal_paths = args.internal_path or ['.']
-    glob_paths = glob_filter(internal_paths, zipinfolist)
+    internal_paths = args.internal_path or ['']
+    glob_paths = glob_filter(internal_paths, zipinfo_dict)
 
-    # TODO: regular ls finds all pathspec that pertain to a single file and
-    #   groups them all together to be listed first, followed by directory
-    #   blocks
-    first_item = True
+    no_such_paths = []
+    file_paths = []
+    dir_paths = []
     for pathspec in glob_paths:
         try:
-            path_matches = ls_filter(zipinfolist, pathspec, args)
+            path_matches = ls_filter(zipinfo_dict, pathspec, args)
         except NoSuchFileDirError:
-            print("zipls: " + pathspec + ": No such file or directory in " + args.zipfile + ".")
+            no_such_paths.append(pathspec)
         else:
-            if (len(glob_paths) > 1) and not args.directory and not first_item:
-                print("")
-            if (len(glob_paths) > 1) and not args.directory:
-                # print pathspec: if more than one glob_path and no -d switch
-                if not (path_matches[0][0]==pathspec and not path_matches[0][1].is_dir()):
-                    # don't print pathspec: if pathspec identical to path_match
-                    #   and path_match is file
-                    print(pathspec.rstrip("/") + ":")
-            format_print_ls(path_matches, args)
-            first_item = False
+            if len(path_matches) == 1 and path_matches[0][0]==pathspec:
+                file_paths.extend(path_matches)
+            else:
+                dir_paths.append([pathspec, path_matches])
+
+    previous_printing = False
+    for no_such_path in no_such_paths:
+        print("zipls: " + no_such_path + ": No such file or directory in " + args.zipfile + ".")
+        previous_printing = True
+    if file_paths:
+        format_print_ls(sorted(file_paths), args)
+        previous_printing = True
+    for dir_path in sorted(dir_paths, key=lambda x: x[0] ):
+        if previous_printing:
+            print("")
+        if previous_printing or len(dir_paths) > 1:
+            print(dir_path[0] + ":")
+        format_print_ls(sorted(dir_path[1]), args)
+        previous_printing = True
 
     return 0
 
