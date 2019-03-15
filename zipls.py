@@ -251,7 +251,6 @@ def get_zip_mtime(zipinfo):
             future, "month day year" format otherwise.
 
     """
-    # TODO: get more accurate mtime from other source than date_time in zipinfo
     date = zipinfo.date_time
     datetm = datetime.datetime(date[0], date[1], date[2], date[3], date[4], date[5])
     if abs(datetm.now() - datetm) < datetime.timedelta(days=180):
