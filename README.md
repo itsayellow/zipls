@@ -1,7 +1,7 @@
 # zipls
 ls inside of a zip file (without extracting!)
 
-zipls will produce near-identical output on a zip file as ls would after extracting the zip file in the current directory.
+zipls will produce near-identical output on a zip file as ls would after extracting the zip file into the current directory.
 
 Some of the key ls switches are replicated.
 
