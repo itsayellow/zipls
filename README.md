@@ -18,7 +18,8 @@ Examples (myzipfile.zip has top-level internal directory of 'topleveldir'):
     zipls -F myzipfile.zip 'topleveldir/*'
 
     zipls -l myzipfile.zip 'topleveldir/*'
-
+    zipls -lh myzipfile.zip 'topleveldir/*'
+    
     zipls -d myzipfile.zip 'topleveldir/*'
 
     zipls -a myzipfile.zip 'topleveldir/*'
