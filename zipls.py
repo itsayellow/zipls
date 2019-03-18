@@ -202,7 +202,7 @@ def get_zip_perms(zipinfo):
     Returns:
         int: file permissions for file in octal
     """
-    # TODO: only get permissions if they're valid (i.e. a unix-created zip?)
+    # Windows zip files with no permissions seem to sensibly default to 0o0000
     perm_octal = (zipinfo.external_attr >> 16) & 0o0777
     return perm_octal
 
@@ -259,6 +259,28 @@ def color_classify(zip_path, args):
     return color_on + zip_path[0] + color_off + classify_str
 
 
+def format_file_size(filesize, args, width=None):
+    """Format file size string for long-listing
+
+    Args:
+        filesize (int):
+        width (int):
+        args (argparse.Namespace): user arguments to script, esp. switches
+
+    Returns:
+        str: file size formatted as string according to args and width (if
+            given).
+    """
+    # TODO: implement -k or -h?
+    if width is None:
+        file_size_str = "{filesize}".format(filesize=filesize)
+    else:
+        file_size_str = "{filesize:>{str_len}} ".format(
+                filesize=filesize, str_len=width
+                )
+    return file_size_str
+
+
 def make_long_format(path_list, args):
     """Output list of strings in informative line-by-line format like ls -l
     Args:
@@ -271,6 +293,14 @@ def make_long_format(path_list, args):
     """
     path_str_list = []
 
+    # find longest length of size str to determine width of string field
+    max_size_str_len = 0
+    for path in path_list:
+        # find longest size string of all paths in pathlist
+        size_str_len = len(format_file_size(path[1].file_size, args))
+        if size_str_len > max_size_str_len:
+            max_size_str_len = size_str_len
+
     for path in path_list:
         #extra_data = path[1].extra
         #os_creator = path[1].create_system # 3-unix
@@ -281,7 +311,10 @@ def make_long_format(path_list, args):
             dir_str = "-"
         perm_octal = get_zip_perms(path[1])
         perm_str = perm_octal2str(perm_octal) + " "
-        size_str = "%d "%path[1].file_size
+        size_str = format_file_size(
+                path[1].file_size, args, max_size_str_len
+                )
+        size_str += " "
         date_str = get_zip_mtime(path[1])
         path_str = color_classify(path, args)
         path_str_list.append(
