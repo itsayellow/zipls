@@ -286,22 +286,22 @@ def format_file_size(filesize, args, width=None):
         # ls -h rounds up if the number before the units would have more than
         #   3 digits, i.e. > 999
         if filesize > 999*1024**4:
-            units="P"
+            units = "P"
             div = 1024**5
         elif filesize > 999*1024**3:
-            units="T"
+            units = "T"
             div = 1024**4
         elif filesize > 999*1024**2:
-            units="G"
+            units = "G"
             div = 1024**3
         elif filesize > 999*1024**1:
-            units="M"
+            units = "M"
             div = 1024**2
         elif filesize > 999:
-            units="K"
+            units = "K"
             div = 1024**1
         else:
-            units="B"
+            units = "B"
             div = 1
         filesize_units = round(filesize/div, 1)
         if filesize_units < 10:
