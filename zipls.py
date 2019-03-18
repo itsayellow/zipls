@@ -53,7 +53,12 @@ def process_command_line(argv):
     argv = argv[1:]
 
     # initialize the parser object:
-    parser = argparse.ArgumentParser(description="ls inside of a zipfile.")
+    # We add help manually down below so we can use -h for "human-readable"
+    #   switch.
+    parser = argparse.ArgumentParser(
+            description="ls inside of a zipfile.",
+            add_help=False
+            )
 
     # specifying nargs= puts outputs of parser in list (even if nargs=1)
 
@@ -86,6 +91,12 @@ def process_command_line(argv):
         '-d', '--directory', action='store_true',
         help='list directories themselves, not their contents'
         )
+    parser.add_argument(
+        '-h', '--human-readable', action='store_true',
+        help='with -l, print sizes like 1K 234M 2G etc.'
+        )
+    # Add help manually so we can use -h for "human-readable" switch.
+    parser.add_argument('--help', action='help')
     parser.add_argument(
         '--hide_macosx', action='store_true',
         help='Hide Mac-specific top-level folder __MACOSX and descendants.' \
@@ -272,6 +283,33 @@ def format_file_size(filesize, args, width=None):
             given).
     """
     # TODO: implement -k or -h?
+    if args.human_readable:
+        # ls -h rounds up if the number before the units would have more than
+        #   3 digits, i.e. > 999
+        if filesize > 999*1024**4:
+            units="P"
+            div = 1024**5
+        elif filesize > 999*1024**3:
+            units="T"
+            div = 1024**4
+        elif filesize > 999*1024**2:
+            units="G"
+            div = 1024**3
+        elif filesize > 999*1024**1:
+            units="M"
+            div = 1024**2
+        elif filesize > 999:
+            units="K"
+            div = 1024**1
+        else:
+            units="B"
+            div = 1
+        filesize_units = round(filesize/div, 1)
+        if filesize_units < 10:
+            filesize = "%.1f"%filesize_units + units
+        else:
+            filesize = "%.f"%filesize_units + units
+
     if width is None:
         file_size_str = "{filesize}".format(filesize=filesize)
     else:
@@ -293,13 +331,17 @@ def make_long_format(path_list, args):
     """
     path_str_list = []
 
-    # find longest length of size str to determine width of string field
-    max_size_str_len = 0
-    for path in path_list:
-        # find longest size string of all paths in pathlist
-        size_str_len = len(format_file_size(path[1].file_size, args))
-        if size_str_len > max_size_str_len:
-            max_size_str_len = size_str_len
+    if args.human_readable:
+        # by design of human-readable formatting
+        max_size_str_len = 4
+    else:
+        # find longest length of size str to determine width of string field
+        max_size_str_len = 0
+        for path in path_list:
+            # find longest size string of all paths in pathlist
+            size_str_len = len(format_file_size(path[1].file_size, args))
+            if size_str_len > max_size_str_len:
+                max_size_str_len = size_str_len
 
     for path in path_list:
         #extra_data = path[1].extra
