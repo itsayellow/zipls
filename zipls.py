@@ -282,7 +282,6 @@ def format_file_size(filesize, args, width=None):
         str: file size formatted as string according to args and width (if
             given).
     """
-    # TODO: implement -k or -h?
     if args.human_readable:
         # ls -h rounds up if the number before the units would have more than
         #   3 digits, i.e. > 999
@@ -306,9 +305,9 @@ def format_file_size(filesize, args, width=None):
             div = 1
         filesize_units = round(filesize/div, 1)
         if filesize_units < 10:
-            filesize = "%.1f"%filesize_units + units
+            filesize = "{:.1f}".format(filesize_units) + units
         else:
-            filesize = "%.f"%filesize_units + units
+            filesize = "{:.0f}".format(filesize_units) + units
 
     if width is None:
         file_size_str = "{filesize}".format(filesize=filesize)
