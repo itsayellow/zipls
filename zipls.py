@@ -674,12 +674,9 @@ def main(argv=None):
     return 0
 
 
-if __name__ == "__main__":
+def cli():
     try:
-        #start_time = time.time()
         status = main(sys.argv)
-        #el_time = time.time() - start_time
-        #print("Elapsed time: %.3f seconds"%el_time)
     except KeyboardInterrupt:
         # Make a very clean exit (no debug info) if user breaks with Ctrl-C
         print("Stopped by Keyboard Interrupt", file=sys.stderr)
@@ -687,3 +684,7 @@ if __name__ == "__main__":
         status = 130
 
     sys.exit(status)
+
+
+if __name__ == "__main__":
+    cli()
