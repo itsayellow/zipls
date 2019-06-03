@@ -4,8 +4,12 @@ ls inside of a zip file (without extracting!)
 zipls will produce near-identical output on a zip file as ls would after extracting the zip file into the current directory.
 
 Some of the key ls switches are replicated.
+## Installation
 
-Examples (myzipfile.zip has top-level internal directory of 'topleveldir'):
+     pipx install --spec git+https://github.com/itsayellow/zipls zipls 
+
+## Examples
+(myzipfile.zip has top-level internal directory of 'topleveldir'):
     
     zipls myzipfile.zip
 
