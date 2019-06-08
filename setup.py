@@ -25,7 +25,7 @@ setup(
                 'zipls=zipls:cli'
                 ]
             },
-        #python_requires='>=3',
+        python_requires='>=3',
         )
 
 
