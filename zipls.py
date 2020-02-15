@@ -15,28 +15,18 @@ import math
 import re
 import shutil
 import sys
-#import time
 import zipfile
 
+from colorama import Fore, Style
 
 TERM_COLS = shutil.get_terminal_size(fallback=(80, 24))[0]
-
-# quick and dirty (hack) terminal color codes
-BLACK = "\u001b[30m"
-RED = "\u001b[31m"
-GREEN = "\u001b[32m"
-YELLOW = "\u001b[33m"
-BLUE = "\u001b[34m"
-MAGENTA = "\u001b[35m"
-CYAN = "\u001b[36m"
-WHITE = "\u001b[37m"
-RESET = "\u001b[0m"
 
 
 class NoSuchFileDirError(Exception):
     """Custom error to indicate no such file or directory (differentiating
         from finding an empty directory with no contents)
     """
+
     pass
 
 
@@ -49,59 +39,59 @@ def process_command_line(argv):
     Returns:
         argparse.Namespace: named attributes of arguments and switches
     """
-    #script_name = argv[0]
+    # script_name = argv[0]
     argv = argv[1:]
 
     # initialize the parser object:
     # We add help manually down below so we can use -h for "human-readable"
     #   switch.
     parser = argparse.ArgumentParser(
-            description="ls inside of a zipfile.",
-            add_help=False
-            )
+        description="ls inside of a zipfile.", add_help=False
+    )
 
     # specifying nargs= puts outputs of parser in list (even if nargs=1)
 
     # required arguments
-    parser.add_argument('zipfile',
-            help="Path to zipfile.",
-            )
-    parser.add_argument('internal_path', nargs='*', default=[],
-            help="Path inside zipfile, relative to internal top-level."
-            )
+    parser.add_argument("zipfile", help="Path to zipfile.")
+    parser.add_argument(
+        "internal_path",
+        nargs="*",
+        default=[],
+        help="Path inside zipfile, relative to internal top-level.",
+    )
 
     # switches/options:
     parser.add_argument(
-        '-a', '--all', action='store_true',
-        help='do not ignore entries starting with .'
-        )
+        "-a", "--all", action="store_true", help="do not ignore entries starting with ."
+    )
+    parser.add_argument("--color", action="store_true", help="colorize the output")
     parser.add_argument(
-        '--color', action='store_true',
-        help='colorize the output'
-        )
+        "-F",
+        "--classify",
+        action="store_true",
+        help="append indicator (one of */=>@) to entries",
+    )
+    parser.add_argument("-l", action="store_true", help="use a long listing format")
     parser.add_argument(
-        '-F', '--classify', action='store_true',
-        help='append indicator (one of */=>@) to entries'
-        )
+        "-d",
+        "--directory",
+        action="store_true",
+        help="list directories themselves, not their contents",
+    )
     parser.add_argument(
-        '-l', action='store_true',
-        help='use a long listing format'
-        )
-    parser.add_argument(
-        '-d', '--directory', action='store_true',
-        help='list directories themselves, not their contents'
-        )
-    parser.add_argument(
-        '-h', '--human-readable', action='store_true',
-        help='with -l, print sizes like 1K 234M 2G etc.'
-        )
+        "-h",
+        "--human-readable",
+        action="store_true",
+        help="with -l, print sizes like 1K 234M 2G etc.",
+    )
     # Add help manually so we can use -h for "human-readable" switch.
-    parser.add_argument('--help', action='help')
+    parser.add_argument("--help", action="help")
     parser.add_argument(
-        '--hide_macosx', action='store_true',
-        help='Hide Mac-specific top-level folder __MACOSX and descendants.' \
-                ' (Not an ls option.)'
-        )
+        "--hide_macosx",
+        action="store_true",
+        help="Hide Mac-specific top-level folder __MACOSX and descendants."
+        " (Not an ls option.)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -117,7 +107,7 @@ def uncolored_len(in_str):
     Returns:
         int: length of visible characters in in_str (not incl. color chars.)
     """
-    return len(re.sub("\u001b"+r"\[[0-9;]+m", "", in_str))
+    return len(re.sub("\u001b" + r"\[[0-9;]+m", "", in_str))
 
 
 def find_cols(str_list):
@@ -131,8 +121,8 @@ def find_cols(str_list):
             number of columns that would fit all str_list entries in each col.
     """
     if str_list:
-        longest_path = max([uncolored_len(x)+1 for x in str_list])
-        numcols = max(int(TERM_COLS/longest_path), 1)
+        longest_path = max([uncolored_len(x) + 1 for x in str_list])
+        numcols = max(int(TERM_COLS / longest_path), 1)
     else:
         # empty str_list, just set one column as default
         numcols = 1
@@ -149,19 +139,19 @@ def print_cols(path_str_list):
         path_str_list (list of str): list of strings to print in columns
     """
     cols = find_cols(path_str_list)
-    num_lines = math.ceil(len(path_str_list)/cols)
-    col_width = int(TERM_COLS/cols)
+    num_lines = math.ceil(len(path_str_list) / cols)
+    col_width = int(TERM_COLS / cols)
 
     for line in range(num_lines):
         for col in range(cols):
             try:
-                path = path_str_list[col*num_lines + line]
+                path = path_str_list[col * num_lines + line]
             except IndexError:
                 # last line might not have all columns
                 break
             print(path, end="")
-            if col < cols-1:
-                print(" "*(col_width-uncolored_len(path)), end="")
+            if col < cols - 1:
+                print(" " * (col_width - uncolored_len(path)), end="")
         print("")
 
 
@@ -256,14 +246,14 @@ def color_classify(zip_path, args):
     classify_str = ""
     if zip_path[1].is_dir():
         if args.color:
-            color_on = BLUE
-            color_off = RESET
+            color_on = Fore.BLUE
+            color_off = Style.RESET_ALL
         if args.classify:
             classify_str = "/"
     elif get_zip_perms(zip_path[1]) & 0o100:
         if args.color:
-            color_on = RED
-            color_off = RESET
+            color_on = Fore.RED
+            color_off = Style.RESET_ALL
         if args.classify:
             classify_str = "*"
 
@@ -285,25 +275,25 @@ def format_file_size(filesize, args, width=None):
     if args.human_readable:
         # ls -h rounds up if the number before the units would have more than
         #   3 digits, i.e. > 999
-        if filesize > 999*1024**4:
+        if filesize > 999 * 1024 ** 4:
             units = "P"
-            div = 1024**5
-        elif filesize > 999*1024**3:
+            div = 1024 ** 5
+        elif filesize > 999 * 1024 ** 3:
             units = "T"
-            div = 1024**4
-        elif filesize > 999*1024**2:
+            div = 1024 ** 4
+        elif filesize > 999 * 1024 ** 2:
             units = "G"
-            div = 1024**3
-        elif filesize > 999*1024**1:
+            div = 1024 ** 3
+        elif filesize > 999 * 1024 ** 1:
             units = "M"
-            div = 1024**2
+            div = 1024 ** 2
         elif filesize > 999:
             units = "K"
-            div = 1024**1
+            div = 1024 ** 1
         else:
             units = "B"
             div = 1
-        filesize_units = round(filesize/div, 1)
+        filesize_units = round(filesize / div, 1)
         if filesize_units < 10:
             filesize = "{:.1f}".format(filesize_units) + units
         else:
@@ -313,8 +303,8 @@ def format_file_size(filesize, args, width=None):
         file_size_str = "{filesize}".format(filesize=filesize)
     else:
         file_size_str = "{filesize:>{str_len}} ".format(
-                filesize=filesize, str_len=width
-                )
+            filesize=filesize, str_len=width
+        )
     return file_size_str
 
 
@@ -343,8 +333,8 @@ def make_long_format(path_list, args):
                 max_size_str_len = size_str_len
 
     for path in path_list:
-        #extra_data = path[1].extra
-        #os_creator = path[1].create_system # 3-unix
+        # extra_data = path[1].extra
+        # os_creator = path[1].create_system # 3-unix
 
         if path[1].is_dir():
             dir_str = "d"
@@ -352,15 +342,11 @@ def make_long_format(path_list, args):
             dir_str = "-"
         perm_octal = get_zip_perms(path[1])
         perm_str = perm_octal2str(perm_octal) + " "
-        size_str = format_file_size(
-                path[1].file_size, args, max_size_str_len
-                )
+        size_str = format_file_size(path[1].file_size, args, max_size_str_len)
         size_str += " "
         date_str = get_zip_mtime(path[1])
         path_str = color_classify(path, args)
-        path_str_list.append(
-                dir_str + perm_str + size_str + date_str + path_str
-                )
+        path_str_list.append(dir_str + perm_str + size_str + date_str + path_str)
 
     return path_str_list
 
@@ -388,7 +374,7 @@ def glob_to_re(glob_str):
     """Convert glob str to compiled regexp object
     """
     glob_str_esc = "^" + re.escape(glob_str) + "$"
-    if '*' in glob_str or '?' in glob_str or re.search(r"\[.+\]", glob_str):
+    if "*" in glob_str or "?" in glob_str or re.search(r"\[.+\]", glob_str):
         # create escaped regexp
         # change \* to [^/]*
         glob_str_esc = re.sub(r"\\\*", r"[^/]*", glob_str_esc)
@@ -442,7 +428,7 @@ def ls_filter(zipinfo_dict, pathspec, args):
         # return relative paths of children of pathspec dir
         return_paths = []
         for child in children:
-            if not child.startswith('.') or args.all:
+            if not child.startswith(".") or args.all:
                 child_path = path_join((pathspec, child))
                 return_paths.append((child, zipinfo_dict[child_path].zipinfo))
     else:
@@ -465,15 +451,15 @@ def glob_recurse(path, zipinfo_dict, output_paths):
     path_dirs = path.split("/")
     first_glob = 0
     for (i, path_dir) in enumerate(path_dirs):
-        if '*' in path_dir or '?' in path_dir or re.search(r"\[.+\]", path_dir):
+        if "*" in path_dir or "?" in path_dir or re.search(r"\[.+\]", path_dir):
             break
-        first_glob = i+1
+        first_glob = i + 1
     parent = path_join(path_dirs[0:first_glob])
     try:
         mid_level = path_dirs[first_glob]
     except IndexError:
         mid_level = None
-    tail = path_join(path_dirs[first_glob+1:])
+    tail = path_join(path_dirs[first_glob + 1 :])
 
     if parent in zipinfo_dict:
         if mid_level is None:
@@ -483,9 +469,8 @@ def glob_recurse(path, zipinfo_dict, output_paths):
                 # find all matches for mid_level
                 glob_re = glob_to_re(mid_level)
                 mid_matches = [
-                        x for x in zipinfo_dict[parent].children.keys()
-                        if glob_re.search(x)
-                        ]
+                    x for x in zipinfo_dict[parent].children.keys() if glob_re.search(x)
+                ]
                 for mid_match in mid_matches:
                     recurse_dir = path_join((parent, mid_match, tail))
                     glob_recurse(recurse_dir, zipinfo_dict, output_paths)
@@ -533,6 +518,7 @@ class FileDirNode:
     Could have been a list or dict, is class for code readability.
     Is maybe tiny bit slower creation than a list or dict.
     """
+
     def __init__(self, zipinfo=None, children=None):
         self.zipinfo = zipinfo
         self.children = children
@@ -549,9 +535,9 @@ def create_node_and_ancestors(node_name, zipinfo, zipinfo_dict):
         zipinfo_dict (dict of FileDirNode): dict of all FileDir obj.
             for all files inside of a zipfile
     """
-    node_components = ["",] + node_name.split("/")
+    node_components = [""] + node_name.split("/")
     for (i, _) in enumerate(node_components):
-        me = path_join(node_components[:i+1])
+        me = path_join(node_components[: i + 1])
         my_parent = path_join(node_components[:i])
         my_leaf = node_components[i]
         try:
@@ -559,7 +545,9 @@ def create_node_and_ancestors(node_name, zipinfo, zipinfo_dict):
         except KeyError:
             # no node named me
             # highest unspecified node currently
-            zipinfo_dict[my_parent].children[my_leaf] = FileDirNode(zipinfo=zipinfo, children={})
+            zipinfo_dict[my_parent].children[my_leaf] = FileDirNode(
+                zipinfo=zipinfo, children={}
+            )
             zipinfo_dict[me] = zipinfo_dict[my_parent].children[my_leaf]
 
 
@@ -578,11 +566,11 @@ def get_zipinfo(zipfilename, args):
         dict of FileDirNode: dict of FildDirNode objects, one for each file
             inside of zipfile
     """
-    with zipfile.ZipFile(str(zipfilename), 'r') as zip_fh:
+    with zipfile.ZipFile(str(zipfilename), "r") as zip_fh:
         zipinfolist = zip_fh.infolist()
 
     # tree root
-    zipinfo_dict = {"":FileDirNode(zipinfo=None, children={})}
+    zipinfo_dict = {"": FileDirNode(zipinfo=None, children={})}
 
     for zipinfo in zipinfolist:
         # filter out toplevel folder __MACOSX and descendants if --hide_macosx
@@ -606,13 +594,17 @@ def get_zipinfo(zipfilename, args):
             #   e.g. we found a lower child directory in the archive first
             #       before this one
             if leaf_name not in node_parent.children:
-                node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children={})
+                node_parent.children[leaf_name] = FileDirNode(
+                    zipinfo=zipinfo, children={}
+                )
             else:
                 # I don't think this should happen, but it might
-                #print("INTERNAL: dir already exists")
+                # print("INTERNAL: dir already exists")
                 node_parent.children[leaf_name].zipinfo = zipinfo
         else:
-            node_parent.children[leaf_name] = FileDirNode(zipinfo=zipinfo, children=None)
+            node_parent.children[leaf_name] = FileDirNode(
+                zipinfo=zipinfo, children=None
+            )
 
         zipinfo_dict[this_filedir] = node_parent.children[leaf_name]
 
@@ -633,7 +625,7 @@ def main(argv=None):
         return 1
 
     # if no paths specified, use '' for root path
-    internal_paths = args.internal_path or ['']
+    internal_paths = args.internal_path or [""]
 
     # convert paths with wildcard paths to one or more actual paths
     glob_paths = glob_filter(internal_paths, zipinfo_dict)
@@ -658,7 +650,13 @@ def main(argv=None):
     # print results
     previous_printing = False
     for no_such_path in no_such_paths:
-        print("zipls: " + no_such_path + ": No such file or directory in " + args.zipfile + ".")
+        print(
+            "zipls: "
+            + no_such_path
+            + ": No such file or directory in "
+            + args.zipfile
+            + "."
+        )
         previous_printing = True
     if file_paths:
         format_print_ls(sorted(file_paths), args)
