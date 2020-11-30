@@ -24,7 +24,7 @@ TERM_COLS = shutil.get_terminal_size(fallback=(80, 24))[0]
 
 class NoSuchFileDirError(Exception):
     """Custom error to indicate no such file or directory (differentiating
-        from finding an empty directory with no contents)
+    from finding an empty directory with no contents)
     """
 
     pass
@@ -371,8 +371,7 @@ def format_print_ls(path_list, args):
 
 
 def glob_to_re(glob_str):
-    """Convert glob str to compiled regexp object
-    """
+    """Convert glob str to compiled regexp object"""
     glob_str_esc = "^" + re.escape(glob_str) + "$"
     if "*" in glob_str or "?" in glob_str or re.search(r"\[.+\]", glob_str):
         # create escaped regexp
