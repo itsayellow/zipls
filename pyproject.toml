@@ -1,6 +1,41 @@
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zipls"
+description = "ls inside of a zip file"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.6"
+authors = [
+    { name = "Matthew A. Clapp", email = "itsayellow+dev@gmail.com" },
+]
+keywords = [
+    "ls",
+    "zip",
+]
+classifiers = [
+    "Natural Language :: English",
+]
+dependencies = [
+    "colorama",
+]
+version = "0.4.0"
+
+[project.scripts]
+zipls = "zipls:cli"
+
+[project.urls]
+Homepage = "https://github.com/itsayellow/zipls"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["single_file_lib.py"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/zipls",
+]
 
 [tool.isort]
 profile = "black"
