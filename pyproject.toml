@@ -30,7 +30,7 @@ zipls = "zipls:cli"
 Homepage = "https://github.com/itsayellow/zipls"
 
 [tool.hatch.build.targets.wheel]
-only-include = ["single_file_lib.py"]
+only-include = ["zipls.py"]
 
 [tool.hatch.build.targets.sdist]
 include = [
